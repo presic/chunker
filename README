@@ -1,0 +1,56 @@
+###INSTRUCTIONS
+
+The program runs in python3 only, and uses a very simple commandline 
+interface. Specify as (unmarked) argument the file(s) to be 
+tagged/trained from, and specify POS model to be used with -p 
+<filepath>. For chunk tagging a chunk model must also be specified with 
+-c <filepath>. 
+
+The program can be instructed to train models from a file by giving it 
+the -t option. The program will then use the filepaths specified by -c 
+and -p commands to save the new generated models.
+
+###FILE FORMAT REQUIREMENTS
+
+The program currently assumes that all files given as (unmarked) 
+arguments are correct .conll files with stanford dependency annotation. 
+The program futher assumes that the token is in the second column, the 
+POS tag is in the fourth column, the standford dependency parent is in 
+the seventh column and the stanford dependency type is on the eigth 
+column.
+
+In order to use data files where these data points are in different 
+columns, the code needs to be edited in the textutils.py file. It's not 
+as scary as it sounds, the definitions are separated into a single 
+definition line under the ConllParser class, which of course is the 
+only class directly interpreting the conll lines.
+
+###CODE LAYOUT
+
+The program consists of the following main components:
+
+Chunker (chunker.py): user interface wrapper and file handling
+
+HMM (hmm.py): runs the viterbi decoding using provided Model
+
+Model (model.py): trains, saves, loads, and stores transition and 
+	emission handlers.
+
+TransitionHandler (estimation.py): smart sub-class of dict, stores 
+	transition probabilities and estimates unseen transitions.
+
+EmissionHandler (estimation.py): smart sub-class of dict, stores 
+	emission probabilities and estimates unseen emission/state pairs. 
+
+Translator (syntaxtranslator.py): translates stanford dependencies into 
+	target tagset
+
+Plus some small utilities:
+
+Node (textutils.py): used for tree representations
+
+ConllParser (textutils.py):: gathering of utility functions for parsing 
+	conll files
+
+Converter (converter.py): handles translating tokens and tags into ints 
+	and vice versa
