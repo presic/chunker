@@ -78,7 +78,7 @@ class EmissionHandler(MutableMapping):
 		"""Access stored emission Ps through (state, emission) keys
 		
 		If the key does not have a corresponding value an emission P
-		is estimated based on token suffix (of max length 5). Smoothing 
+		is estimated based on token suffix (of max length 10). Smoothing 
 		is done using successively shorter suffixes of the same token, 
 		as described by (Brants 2000). 
 		
@@ -195,7 +195,7 @@ class TransitionHandler():
 		This method is run by the Model class during training.
 		
 		Lambda-weights are calculated using context-free interpolation, 
-		described in (Brants 2000). Also stores uni-, bi- and 
+		described in Brants (2000). Also stores uni-, bi- and 
 		trigramcounts."""
 		#  find lambdas
 		l =  array([0, 0, 0], dtype=float64)

@@ -26,20 +26,48 @@ import pickle
 import os
 from hmm import HMM 
 from model import Model
-from textutils import Tokenizer, ConllParser
+from textutils import ConllParser
 from argparse import ArgumentParser
 
+
+#These constants are used for ease-of-reading purposes
 CHUNK = 0
 POS = 1
 
 class Chunker:
+	"""High-level control class for the entire program
+	
+	Chunker class handles commandline interface and keepds track of 
+	models for PoS tagging and Chunk tagging. Also handles input and 
+	output to files, outside of loading and saving models which is done 
+	by the model class.
+	
+	attributes:
+		pos_model (Model): the model object trained for PoS tagging 
+		chunk_model (Model): the model object trained for chunking 
+		hmm (HMM): the HMM object used together with either model to 
+			perform tagging operations
+	methods:
+		load_model(filename[, mode]): filename is the filepath for the 
+			file containing the model to be loaded, mode is an int 
+			specifying whether the model to be loaded should be used 
+			for chunking or PoS-tagging
+		save_model(filename[, mode]): filename is the filepath the model 
+			will be saved at, mode is an int specifying which model to 
+			be saved, chunktagging model or postagging model
+		tag(tokens, mode): finds pos tags for tokens, if mode is set 
+			to chunk find chunk tags to the generate pos tags
+		tag_file(infile[, outfile, mode]): generate annotated version of
+			file at infile, output either to terminal or outfile
+	
+	"""
 	def __init__(self):
 		self.pos_model = None
 		self.chunk_model = None
 		self.hmm = HMM()
-		self.tokenizer = Tokenizer()
 	
 	def load_model(self, filename, mode=CHUNK):
+		"""Makes new model object by loading from filepath"""
 		if mode == CHUNK: 
 			self.chunk_model = Model()
 			self.chunk_model.load_from(filename)
@@ -48,6 +76,7 @@ class Chunker:
 			self.pos_model.load_from(filename)
 	
 	def save_model(self, filename, mode=CHUNK):
+		"""Tells model object to save at filepath"""
 		try:
 			if mode == CHUNK: self.chunk_model.save_at(filename)
 			if mode == POS: self.pos_model.save_at(filename)
@@ -57,6 +86,18 @@ class Chunker:
 	
 	
 	def tag(self, tokens, mode=CHUNK):
+		"""Finds chunk or PoS tags for input list of tokens
+		
+		Uses the hmm object together with pos_model to generate a list 
+		of pos tags from a list of tokens. If mode is CHUNK then the 
+		list of pos tags is used together with chunking model in the 
+		hmm object to generate a list of chunk tags.
+		
+		PRE: tokens is a list of strings representing tokens, mode if 
+			specified is 0 (CHUNK) or 1 (POS)
+		POST: returns list of chunk tags if mode is 0 (CHUNK) or list 
+			of PoS tags if mode is 1 (POS)
+		"""
 		if self.pos_model:
 			if self.chunk_model and mode == CHUNK:
 				pos_nums = self.hmm.viterbi(tokens, self.pos_model)
@@ -71,14 +112,31 @@ class Chunker:
 		else: print("No model for part-of-speech pre-processing.")
 	
 	def tag_file(self, infile, outfile=None, mode=CHUNK):
+		"""reads a .conll file and annotates with PoS or chunk tags
+		
+		Reads through a .conll file one sentence at a time, deliminated 
+		by blank lines, and runs the tag function on each list of 
+		tokens generated. The original lines are stored as strings and 
+		the new annotation is added when at the appropriate column when 
+		a sentence has been decoded, and are then outputted or written 
+		to a file. 
+		
+		PRE: infile is filepath to a .conll file, mode is 0 (CHUNK) or 
+			1 (POS), outfile if specified is the filepath for storing 
+			generated annotated file
+		POST: the contents of infile will be annotated with chunk or 
+			PoS tags and outputtet either in terminal or at outfile
+		"""
 		parser = ConllParser()
 		sentence, raw_lines = [], []
 		line = infile.readline()
 		while line:
+			# if line isn't empty use it
 			if line != "\n":
 				token = parser.parse_line_TAG(line)
 				sentence.append(token)
 				raw_lines.append(line)
+			# if end of sentence that is non empty
 			elif len(sentence) > 0:
 				out_sequence = self.tag(sentence, mode)
 				if outfile:
@@ -141,17 +199,20 @@ def main(args):
 	outfile = None
 	mode = ''
 	
+	#determine mode
 	if args.only_pos:
 		mode = POS
 	else:
 		mode = CHUNK
 	
+	# determine if output should go to file
 	if args.output and not args.train:
 		try:
 			outfile = open(args.output[0], 'w')
 		except IOError as e:
 			pring("Can't open", args.output[0])
-	
+			
+	# if there is a pos model, load it
 	if args.pos_model and not args.train:
 		try:
 			chunker.load_model(args.pos_model[0], mode=POS)
@@ -164,7 +225,8 @@ def main(args):
 			if outfile: outfile.close()
 			return
 	
-	if args.chunk_model:
+	# if there is a chunk model, load it
+	if args.chunk_model and not args.train:
 		try:
 			chunker.load_model(args.chunk_model[0], mode=CHUNK)
 		except IOError:
@@ -180,6 +242,8 @@ def main(args):
 			print("Unknown error while unpickling, is this a valid model file?", args.pos_model[0])					
 			if outfile: outfile.close()
 			return
+		
+	# determine if models should be trained rather than used
 	if args.train:
 		if args.pos_model: 
 			pos_m = Model()
@@ -191,7 +255,7 @@ def main(args):
 			chunk_m = Model()
 			chunk_m.train(args.files[0], mode=CHUNK)
 			chunk_m.save_at(args.chunk_model)
-			
+	# models are not to be trained, use them to tag!	
 	else:
 		for string in args.files:
 			if string == args.output[0]:
